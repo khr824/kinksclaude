@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Class Links</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Figtree:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EEF1;--card:#fff;--ink:#17283B;--muted:#5C6B7A;--line:#CBD5DC;--accent:#17283B;--on-accent:#fff;
+  --c1:#E4572E;--c2:#F2B705;--c3:#2E9E83;--c4:#3D6FD8;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101A24;--card:#1A2836;--ink:#EEF2F5;--muted:#9AABBA;--line:#2D3E4F;--accent:#F2B705;--on-accent:#17283B;}}
+:root[data-theme="dark"]{--bg:#101A24;--card:#1A2836;--ink:#EEF2F5;--muted:#9AABBA;--line:#2D3E4F;--accent:#F2B705;--on-accent:#17283B;}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 Figtree,system-ui,sans-serif;min-height:100%}
+main{max-width:480px;margin:0 auto;padding:28px 18px 48px}
+header{text-align:center;margin-bottom:22px}
+.avatar{width:72px;height:72px;border-radius:50%;background:var(--c2);color:#17283B;display:grid;place-items:center;
+  font:800 30px 'Bricolage Grotesque',sans-serif;margin:0 auto 12px}
+h1{font:800 26px/1.15 'Bricolage Grotesque',sans-serif;margin:0 0 4px}
+.sub{color:var(--muted);margin:0}
+form.add{background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:14px;display:grid;gap:10px;margin-bottom:22px}
+form.add h2{font:600 16px 'Bricolage Grotesque',sans-serif;margin:0}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:100%;min-height:46px}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--c4);outline-offset:2px}
+button{font:600 15px Figtree,sans-serif;border:0;border-radius:10px;min-height:44px;padding:0 16px;cursor:pointer;background:var(--accent);color:var(--on-accent)}
+button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.err{color:var(--c1);font-size:14px;margin:0;min-height:0}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+li{background:var(--card);border-radius:14px;border-left:8px solid var(--bar,var(--c1));box-shadow:0 1px 0 var(--line)}
+a.link{display:block;padding:18px 16px 6px;color:var(--ink);text-decoration:none;font:600 18px 'Bricolage Grotesque',sans-serif;word-break:break-word}
+.url{padding:0 16px;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tools{display:flex;gap:6px;padding:8px 10px 10px;justify-content:flex-end}
+.tools button{min-height:40px;min-width:40px;padding:0 10px;font-size:14px}
+.edit{padding:14px 16px;display:grid;gap:10px}
+.row{display:flex;gap:8px}.row button{flex:1}
+.empty{text-align:center;color:var(--muted);padding:26px 10px;border:2px dashed var(--line);border-radius:14px}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="avatar" aria-hidden="true">T</div>
+    <h1>My Class Links</h1>
+    <p class="sub">Everything for our class, in one place</p>
+  </header>
+
+  <form class="add" id="addForm" novalidate>
+    <h2>Add a link</h2>
+    <input id="title" placeholder="Title (e.g. Homework Portal)" aria-label="Link title" autocomplete="off" maxlength="80">
+    <input id="url" placeholder="Web address (e.g. school.edu/homework)" aria-label="Link web address" inputmode="url" autocapitalize="none" autocomplete="off">
+    <p class="err" id="err" role="alert"></p>
+    <button type="submit">Add link</button>
+  </form>
+
+  <ul id="list"></ul>
+</main>
+
+<script>
+const KEY='teacher-links-v1';
+const COLORS=['--c1','--c2','--c3','--c4'];
+let links=[],editing=null;
+
+try{links=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){links=[]}
+if(!Array.isArray(links))links=[];
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify(links))}catch(e){}}
+function normalize(u){
+  u=u.trim();if(!u)return null;
+  if(!/^https?:\/\//i.test(u))u='https://'+u;
+  try{const p=new URL(u);return p.hostname.includes('.')?p.href:null}catch(e){return null}
+}
+function host(u){try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return u}}
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function render(){
+  const list=document.getElementById('list');
+  if(!links.length){list.innerHTML='<li class="empty" style="border-left:2px dashed var(--line)">No links yet. Add your first link above.</li>';return}
+  list.innerHTML=links.map((l,i)=>{
+    const bar=`style="--bar:var(${COLORS[i%4]})"`;
+    if(editing===l.id)return `<li ${bar}><div class="edit">
+      <input id="editInput" value="${esc(l.title)}" maxlength="80" aria-label="Edit title">
+      <div class="row"><button data-a="save" data-id="${l.id}">Save title</button><button class="ghost" data-a="cancel">Cancel</button></div></div></li>`;
+    return `<li ${bar}>
+      <a class="link" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)}</a>
+      <div class="url">${esc(host(l.url))}</div>
+      <div class="tools">
+        <button class="ghost" data-a="up" data-id="${l.id}" aria-label="Move up" ${i===0?'disabled':''}>↑</button>
+        <button class="ghost" data-a="down" data-id="${l.id}" aria-label="Move down" ${i===links.length-1?'disabled':''}>↓</button>
+        <button class="ghost" data-a="edit" data-id="${l.id}">Edit title</button>
+        <button class="ghost" data-a="del" data-id="${l.id}" aria-label="Delete ${esc(l.title)}">Delete</button>
+      </div></li>`;
+  }).join('');
+  const inp=document.getElementById('editInput');
+  if(inp){inp.focus();inp.select();inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter')commitEdit();if(e.key==='Escape'){editing=null;render()}})}
+}
+
+function commitEdit(){
+  const v=document.getElementById('editInput').value.trim();
+  const l=links.find(x=>x.id===editing);
+  if(l&&v)l.title=v;
+  editing=null;save();render();
+}
+
+document.getElementById('addForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const t=document.getElementById('title'),u=document.getElementById('url'),err=document.getElementById('err');
+  const url=normalize(u.value);
+  if(!t.value.trim()){err.textContent='Enter a title for the link.';t.focus();return}
+  if(!url){err.textContent='Enter a valid web address, like school.edu/homework.';u.focus();return}
+  err.textContent='';
+  links.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),title:t.value.trim(),url});
+  t.value='';u.value='';save();render();t.focus();
+});
+
+document.getElementById('list').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  const a=b.dataset.a,id=b.dataset.id,i=links.findIndex(x=>x.id===id);
+  if(a==='edit'){editing=id}
+  else if(a==='cancel'){editing=null}
+  else if(a==='save'){commitEdit();return}
+  else if(a==='del'){links.splice(i,1);save()}
+  else if(a==='up'&&i>0){[links[i-1],links[i]]=[links[i],links[i-1]];save()}
+  else if(a==='down'&&i<links.length-1){[links[i+1],links[i]]=[links[i],links[i+1]];save()}
+  render();
+});
+render();
+</script>
+</body>
+</html>
